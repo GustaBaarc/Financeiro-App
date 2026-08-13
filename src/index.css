@@ -1,0 +1,458 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Premium Dark Theme (Slate/Navy) - Escuro elegante, não preto */
+  --bg-color: #1e293b;       /* Slate 800 - Fundo azul-acinzentado escuro */
+  --bg-surface: #334155;     /* Slate 700 - Paineis um pouco mais claros */
+  --bg-surface-solid: #334155;
+  --bg-surface-hover: #475569;
+  
+  --text-main: #f8fafc;      /* Branco azulado - Ótima leitura no escuro */
+  --text-muted: #94a3b8;     /* Cinza médio */
+  
+  /* Primary Accent (Azul Vibrante) */
+  --primary: #3b82f6;        /* Blue 500 */
+  --primary-hover: #60a5fa;
+  --primary-light: rgba(59, 130, 246, 0.15);
+  
+  --success: #10b981;        
+  --success-light: rgba(16, 185, 129, 0.15);
+  --danger: #ef4444;         
+  --danger-light: rgba(239, 68, 68, 0.15);
+  
+  --border: #475569; /* Slate 600 para bordas no modo escuro */
+  --border-radius: 24px;
+  --border-radius-sm: 16px;
+  
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+  --shadow-btn: 0 8px 20px rgba(59, 130, 246, 0.3); /* Sombra Azul em vez de roxa */
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body:has(.modal-overlay) {
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+header {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 768px) {
+  header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  margin-bottom: 0.3rem;
+}
+
+p.subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+/* --- Layout Grid --- */
+.layout-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .layout-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    align-items: start;
+    gap: 3rem;
+  }
+  
+  .card-stack {
+    flex-direction: column !important;
+    overflow-y: visible !important;
+    overflow-x: visible !important;
+    padding-bottom: 0 !important;
+    scroll-snap-type: none !important;
+  }
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Glassmorphism/Soft Cards */
+.dash-widget, .category-bars, .history-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dash-widget {
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.dash-widget:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.widget-title {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.widget-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-main);
+}
+
+/* Credit Cards (Bank Visualizer) */
+.card-stack {
+  display: flex;
+  gap: 1.25rem;
+  overflow-x: auto;
+  padding: 0.5rem 0 1.5rem 0;
+  scroll-snap-type: x mandatory;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.card-stack::-webkit-scrollbar {
+  display: none;
+}
+
+.credit-card {
+  min-width: 300px;
+  height: 190px;
+  border-radius: var(--border-radius);
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-lg);
+  scroll-snap-align: center;
+  position: relative;
+  overflow: hidden;
+  color: white;
+  border: none;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.credit-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.2);
+}
+
+.credit-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -50%;
+  width: 150%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 100%);
+  transform: skewX(-20deg);
+  pointer-events: none;
+}
+
+.card-number {
+  font-family: 'Inter', monospace;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* FAB */
+.fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  box-shadow: var(--shadow-btn);
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 50;
+}
+
+.fab:hover {
+  transform: scale(1.08) translateY(-4px);
+  box-shadow: 0 12px 25px rgba(59, 130, 246, 0.4);
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.7); /* Fundo modal escurecido */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-start; /* Permite rolar desde o topo */
+  justify-content: center;
+  overflow-y: auto; /* A rolagem fica no fundo escuro */
+  z-index: 100;
+  padding: 2rem 1rem;
+}
+
+.modal-content {
+  background: var(--bg-surface-solid);
+  padding: 2.5rem;
+  border-radius: var(--border-radius);
+  width: 100%;
+  max-width: 480px;
+  border: none;
+  box-shadow: var(--shadow-lg);
+  animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border);
+  background: #1e293b; /* Fundo do input mais escuro */
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #334155;
+  box-shadow: 0 0 0 4px var(--primary-light);
+}
+
+/* Buttons */
+.btn {
+  padding: 0.85rem 1.5rem;
+  border-radius: var(--border-radius-sm);
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  width: 100%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--text-main); /* Cor de texto garantida para botões genéricos */
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #FFFFFF; /* Texto branco absoluto no botão principal */
+  box-shadow: var(--shadow-btn);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+}
+
+.btn-icon {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-main); /* Cor forte e visível para os ícones (engrenagem, sair) */
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-icon:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+/* History List */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.history-item {
+  padding: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-item:hover {
+  background: var(--bg-surface-hover);
+}
+
+.history-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
+.text-success {
+  color: var(--success);
+}
+
+/* Progress Bars */
+.category-bars {
+  padding: 1.75rem;
+}
+
+.progress-bg {
+  width: 100%;
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--success), var(--primary));
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.history-item-pending {
+  opacity: 0.6;
+}
+
+/* Month Input */
+.month-input-visible {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  font-size: 1.3rem;
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+}
+
+.month-input-visible::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+  filter: invert(1); /* Faz o ícone do calendário ficar branco no modo escuro */
+  transition: opacity 0.2s;
+}
+
+.month-input-visible::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
