@@ -17,6 +17,7 @@ import CsvImportModal from './components/CsvImportModal';
 import SettingsModal from './components/SettingsModal';
 import Login from './components/Login';
 import AIAssistant from './components/AIAssistant';
+import PasswordRecovery from './components/PasswordRecovery';
 import { exportToCSV } from './utils/export';
 import { supabase } from './supabaseClient';
 
@@ -157,18 +158,23 @@ function AppContent() {
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
       if (active) {
         setSession(data.session);
+        if (data.session && new URLSearchParams(window.location.search).get('recovery') === '1') {
+          setIsPasswordRecovery(true);
+        }
         setLoading(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
       setLoading(false);
     });
 
@@ -186,6 +192,10 @@ export default function App() {
         <p>Preparando seu espaço...</p>
       </div>
     );
+  }
+
+  if (isPasswordRecovery && session) {
+    return <PasswordRecovery onComplete={() => setIsPasswordRecovery(false)} />;
   }
 
   if (!session) return <Login />;

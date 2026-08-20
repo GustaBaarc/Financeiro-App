@@ -1408,6 +1408,27 @@ select.form-control {
   cursor: pointer;
 }
 
+.password-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.password-label-row label {
+  margin: 0;
+}
+
+.password-label-row button {
+  border: 0;
+  background: transparent;
+  color: #9fa5ff;
+  cursor: pointer;
+  font-size: 0.61rem;
+  font-weight: 680;
+}
+
 .field-hint {
   display: block;
   margin-top: 6px;
@@ -2141,6 +2162,62 @@ select.form-control {
   width: 340px;
   height: 340px;
   background: rgba(39, 187, 145, 0.08);
+}
+
+.recovery-page {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(124, 131, 247, 0.13), transparent 35%),
+    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    var(--bg);
+  background-size: auto, 44px 44px, 44px 44px, auto;
+}
+
+.recovery-card {
+  width: min(100%, 450px);
+  padding: 34px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xl);
+  background: linear-gradient(155deg, #152136, #0d1625);
+  box-shadow: var(--shadow-lg);
+}
+
+.recovery-brand {
+  display: flex;
+  margin-bottom: 34px;
+}
+
+.recovery-icon {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  margin-bottom: 19px;
+  border-radius: 15px;
+  background: var(--primary-soft);
+  color: #b3b8ff;
+}
+
+.recovery-card h1 {
+  margin-bottom: 8px;
+  font-size: 1.7rem;
+  letter-spacing: -0.045em;
+}
+
+.recovery-card > p {
+  margin-bottom: 24px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.recovery-submit {
+  width: 100%;
+  margin-top: 8px;
 }
 
 .app-loading {

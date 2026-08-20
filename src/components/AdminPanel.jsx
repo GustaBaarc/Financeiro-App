@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, KeyRound, Loader2, Shield } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useExpense } from '../context/ExpenseContext';
+import { getAuthRedirectUrl } from '../utils/auth';
 
 export default function AdminPanel() {
   const { userProfile } = useExpense();
@@ -49,7 +50,9 @@ export default function AdminPanel() {
     if (!window.confirm(`Enviar um link de redefinição para ${email}?`)) return;
 
     setUpdatingId(profile.id);
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: getAuthRedirectUrl('/?recovery=1'),
+    });
     setMessage(error
       ? { type: 'error', text: `Não foi possível enviar o e-mail: ${error.message}` }
       : { type: 'success', text: 'E-mail de recuperação enviado.' });

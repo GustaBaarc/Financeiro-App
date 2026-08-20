@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertCircle, ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, WalletCards } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import { getAuthRedirectUrl } from '../utils/auth';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const resetFields = () => {
@@ -26,9 +28,18 @@ export default function Login() {
 
   const toggleMode = () => {
     setIsSignUp(previous => !previous);
+    setIsForgotPassword(false);
     setErrorMessage('');
     setSuccessMessage('');
     resetFields();
+  };
+
+  const showLogin = () => {
+    setIsSignUp(false);
+    setIsForgotPassword(false);
+    setErrorMessage('');
+    setSuccessMessage('');
+    setPassword('');
   };
 
   const calculateAge = (dateString) => {
@@ -46,12 +57,19 @@ export default function Login() {
     setSuccessMessage('');
 
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: getAuthRedirectUrl('/?recovery=1'),
+        });
+        if (error) throw error;
+        setSuccessMessage('Se este e-mail estiver cadastrado, você receberá um link para criar uma nova senha.');
+      } else if (isSignUp) {
         if (calculateAge(birthDate) < 18) throw new Error('Você precisa ter pelo menos 18 anos para criar uma conta.');
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
+            emailRedirectTo: getAuthRedirectUrl('/'),
             data: {
               full_name: fullName.trim(),
               phone: phone.trim(),
@@ -101,16 +119,16 @@ export default function Login() {
         <div className="auth-mobile-brand"><span><WalletCards size={21} /></span> Minhas Finanças</div>
         <div className="auth-form-wrap">
           <div className="auth-heading">
-            <span className="eyebrow">{isSignUp ? 'Comece agora' : 'Bem-vindo de volta'}</span>
-            <h2>{isSignUp ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
-            <p>{isSignUp ? 'Leva menos de dois minutos.' : 'Continue de onde você parou.'}</p>
+            <span className="eyebrow">{isForgotPassword ? 'Recuperação segura' : isSignUp ? 'Comece agora' : 'Bem-vindo de volta'}</span>
+            <h2>{isForgotPassword ? 'Recupere sua senha' : isSignUp ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
+            <p>{isForgotPassword ? 'Enviaremos um link de redefinição para o seu e-mail.' : isSignUp ? 'Leva menos de dois minutos.' : 'Continue de onde você parou.'}</p>
           </div>
 
           {errorMessage && <div className="feedback-message error" role="alert"><AlertCircle size={18} /><span>{errorMessage}</span></div>}
           {successMessage && <div className="feedback-message success"><CheckCircle2 size={18} /><span>{successMessage}</span></div>}
 
           <form className="auth-form" onSubmit={handleAuth}>
-            {isSignUp && (
+            {isSignUp && !isForgotPassword && (
               <>
                 <div className="form-group">
                   <label htmlFor="full-name">Nome completo</label>
@@ -143,23 +161,32 @@ export default function Login() {
               <label htmlFor="email">E-mail</label>
               <input id="email" type="email" className="form-control" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@email.com" autoComplete="email" required />
             </div>
-            <div className="form-group">
-              <label htmlFor="password">Senha</label>
-              <div className="password-field">
-                <input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo de 6 caracteres" autoComplete={isSignUp ? 'new-password' : 'current-password'} minLength={6} required />
-                <button type="button" onClick={() => setShowPassword(previous => !previous)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+            {!isForgotPassword && (
+              <div className="form-group">
+                <div className="password-label-row">
+                  <label htmlFor="password">Senha</label>
+                  {!isSignUp && <button type="button" onClick={() => { setIsForgotPassword(true); setErrorMessage(''); setSuccessMessage(''); }}>Esqueci minha senha</button>}
+                </div>
+                <div className="password-field">
+                  <input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo de 6 caracteres" autoComplete={isSignUp ? 'new-password' : 'current-password'} minLength={6} required />
+                  <button type="button" onClick={() => setShowPassword(previous => !previous)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+                </div>
               </div>
-            </div>
+            )}
 
             <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
-              {loading ? <><Loader2 className="spin" size={18} /> Aguarde...</> : <>{isSignUp ? 'Criar minha conta' : 'Entrar'} <ArrowRight size={18} /></>}
+              {loading ? <><Loader2 className="spin" size={18} /> Aguarde...</> : <>{isForgotPassword ? 'Enviar link seguro' : isSignUp ? 'Criar minha conta' : 'Entrar'} <ArrowRight size={18} /></>}
             </button>
           </form>
 
-          <p className="auth-switch">
-            {isSignUp ? 'Já possui uma conta?' : 'Ainda não possui uma conta?'}
-            <button type="button" onClick={toggleMode}>{isSignUp ? 'Fazer login' : 'Criar conta grátis'}</button>
-          </p>
+          {isForgotPassword ? (
+            <p className="auth-switch">Lembrou sua senha?<button type="button" onClick={showLogin}>Voltar ao login</button></p>
+          ) : (
+            <p className="auth-switch">
+              {isSignUp ? 'Já possui uma conta?' : 'Ainda não possui uma conta?'}
+              <button type="button" onClick={toggleMode}>{isSignUp ? 'Fazer login' : 'Criar conta grátis'}</button>
+            </p>
+          )}
         </div>
       </section>
     </main>
