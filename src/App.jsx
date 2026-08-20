@@ -1,112 +1,157 @@
-import { useState, useEffect } from 'react'
-import { Plus, Upload, Download, Settings, LogOut } from 'lucide-react'
-import { ExpenseProvider } from './context/ExpenseContext'
-import CardVisualizer from './components/CardVisualizer'
-import Dashboard from './components/Dashboard'
-import TransactionModal from './components/TransactionModal'
-import CsvImportModal from './components/CsvImportModal'
-import SettingsModal from './components/SettingsModal'
-import Login from './components/Login'
-import AIAssistant from './components/AIAssistant'
-import { exportToCSV } from './utils/export'
-import { useExpense } from './context/ExpenseContext'
-import { supabase } from './supabaseClient'
+import { useEffect, useRef, useState } from 'react';
+import {
+  CheckCircle2,
+  Download,
+  LogOut,
+  Plus,
+  Settings,
+  Upload,
+  WalletCards,
+  X,
+} from 'lucide-react';
+import { ExpenseProvider, useExpense } from './context/ExpenseContext';
+import CardVisualizer from './components/CardVisualizer';
+import Dashboard from './components/Dashboard';
+import TransactionModal from './components/TransactionModal';
+import CsvImportModal from './components/CsvImportModal';
+import SettingsModal from './components/SettingsModal';
+import Login from './components/Login';
+import AIAssistant from './components/AIAssistant';
+import { exportToCSV } from './utils/export';
+import { supabase } from './supabaseClient';
 
 function AppContent() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTx, setEditingTx] = useState(null);
+  const [transactionModal, setTransactionModal] = useState({ open: false, transaction: null });
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { transactions, banks, addBank } = useExpense();
+  const [notice, setNotice] = useState(null);
+  const noticeTimer = useRef(null);
+  const { transactions, banks, addBank, userProfile, dataError, dismissDataError } = useExpense();
+
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
+
+  const showMessage = (message, type = 'success') => {
+    clearTimeout(noticeTimer.current);
+    setNotice({ message, type });
+    noticeTimer.current = setTimeout(() => setNotice(null), 4200);
+  };
+
+  const openTransaction = (transaction = null) => setTransactionModal({ open: true, transaction });
+  const closeTransaction = () => setTransactionModal({ open: false, transaction: null });
 
   const handleAIResult = async (result) => {
     if (result.intent === 'bank') {
       try {
         await addBank(result.data);
-        alert(`Cartão ${result.data.name} adicionado com sucesso pela IA!`);
-      } catch (err) {
-        alert("Erro ao adicionar cartão");
+        showMessage(`Conta ${result.data.name} adicionada pela assistente.`);
+      } catch (error) {
+        showMessage(error.message || 'Não foi possível adicionar a conta.', 'error');
       }
-    } else {
-      // É uma transação
-      setEditingTx(result.data);
-      setIsModalOpen(true);
+      return;
+    }
+    openTransaction(result.data);
+  };
+
+  const handleExport = () => {
+    try {
+      exportToCSV(transactions, banks);
+      showMessage('Arquivo CSV gerado com sucesso.');
+    } catch (error) {
+      showMessage(error.message, 'error');
     }
   };
 
+  const displayName = userProfile?.full_name || userProfile?.name;
+
   return (
-    <div className="app-container">
-      <header>
-        <div>
-          <h1 style={{ fontSize: '1.8rem', marginBottom: '0.2rem' }}>Minhas Finanças 2.0</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Controle integrado de Contas e Cartões.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button 
-            className="btn-icon" 
-            onClick={() => setIsSettingsOpen(true)}
-            title="Configurações"
-          >
-            <Settings size={20} />
-          </button>
-          <button 
-            className="btn-icon" 
-            onClick={async () => {
-              if(window.confirm('Tem certeza que deseja sair?')) {
-                await supabase.auth.signOut();
-              }
-            }}
-            title="Sair"
-          >
-            <LogOut size={20} color="var(--danger)" />
-          </button>
-          <button 
-            className="btn" 
-            style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-            onClick={() => exportToCSV(transactions, banks)}
-            title="Exportar Dados"
-          >
-            <Download size={18} />
-            Exportar
-          </button>
-          <button 
-            className="btn" 
-            style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-main)' }}
-            onClick={() => setIsCsvModalOpen(true)}
-            title="Importar CSV"
-          >
-            <Upload size={18} />
-            Importar
-          </button>
-        </div>
-      </header>
+    <div className="app-shell">
+      <div className="ambient ambient-one" />
+      <div className="ambient ambient-two" />
+      <div className="app-container">
+        <header className="topbar">
+          <div className="brand-block">
+            <div className="brand-mark"><WalletCards size={24} /></div>
+            <div>
+              <span className="brand-name">Minhas Finanças</span>
+              <p>{displayName ? `Olá, ${displayName.split(' ')[0]}.` : 'Seu dinheiro, com mais clareza.'}</p>
+            </div>
+          </div>
 
-      <div className="layout-grid">
-        <aside className="sidebar">
-          <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', fontWeight: '600' }}>Minhas Contas</h2>
-          <CardVisualizer />
-        </aside>
+          <nav className="header-actions" aria-label="Ações principais">
+            <button type="button" className="header-button" onClick={handleExport} title="Exportar CSV">
+              <Download size={18} /><span>Exportar</span>
+            </button>
+            <button type="button" className="header-button" onClick={() => setIsCsvModalOpen(true)} title="Importar CSV">
+              <Upload size={18} /><span>Importar</span>
+            </button>
+            <button type="button" className="header-button icon-only-mobile" onClick={() => setIsSettingsOpen(true)} title="Configurações">
+              <Settings size={18} /><span>Contas</span>
+            </button>
+            <button type="button" className="btn btn-primary new-transaction-button" onClick={() => openTransaction()}>
+              <Plus size={18} /> Nova transação
+            </button>
+            <button
+              type="button"
+              className="icon-button logout-button"
+              onClick={async () => {
+                if (window.confirm('Deseja sair da sua conta?')) await supabase.auth.signOut();
+              }}
+              aria-label="Sair da conta"
+              title="Sair"
+            >
+              <LogOut size={18} />
+            </button>
+          </nav>
+        </header>
 
-        <main className="main-content">
-          <section>
+        {(dataError || notice) && (
+          <div className={`global-notice ${(notice?.type || 'error')}`} role="status">
+            {notice?.type === 'success' && <CheckCircle2 size={18} />}
+            <span>{notice?.message || dataError}</span>
+            <button type="button" onClick={() => { setNotice(null); dismissDataError(); }} aria-label="Fechar aviso"><X size={16} /></button>
+          </div>
+        )}
+
+        <div className="layout-grid">
+          <aside className="sidebar">
+            <div className="sidebar-heading">
+              <div><span className="eyebrow">Carteira</span><h2>Suas contas</h2></div>
+              <button type="button" className="text-button" onClick={() => setIsSettingsOpen(true)}>Gerenciar</button>
+            </div>
+            <CardVisualizer onManage={() => setIsSettingsOpen(true)} />
+            <div className="sidebar-tip">
+              <span>MF</span>
+              <p><strong>Dica do mês</strong>Revise os gastos pendentes antes de fechar a fatura.</p>
+            </div>
+          </aside>
+
+          <main className="main-content">
             <AIAssistant onResult={handleAIResult} />
-          </section>
-
-          <section>
-            <Dashboard onEdit={(tx) => { setEditingTx(tx); setIsModalOpen(true); }} />
-          </section>
-        </main>
+            <Dashboard onEdit={openTransaction} onMessage={showMessage} />
+          </main>
+        </div>
       </div>
 
-      <button className="fab" onClick={() => { setEditingTx(null); setIsModalOpen(true); }} title="Nova Transação">
-        <Plus size={28} />
+      <button type="button" className="fab" onClick={() => openTransaction()} aria-label="Nova transação">
+        <Plus size={25} />
       </button>
 
-      {isModalOpen && <TransactionModal initialData={editingTx} onClose={() => { setIsModalOpen(false); setEditingTx(null); }} />}
-      {isCsvModalOpen && <CsvImportModal onClose={() => setIsCsvModalOpen(false)} />}
-      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+      {transactionModal.open && (
+        <TransactionModal
+          initialData={transactionModal.transaction}
+          onClose={closeTransaction}
+          onSaved={showMessage}
+        />
+      )}
+      {isCsvModalOpen && (
+        <CsvImportModal
+          onClose={() => setIsCsvModalOpen(false)}
+          onImported={(count) => showMessage(`${count} transações importadas com sucesso.`)}
+        />
+      )}
+      {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} onMessage={showMessage} />}
     </div>
-  )
+  );
 }
 
 export default function App() {
@@ -114,31 +159,36 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) {
+        setSession(data.session);
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
       setLoading(false);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (loading) {
-    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Carregando...</div>;
+    return (
+      <div className="app-loading" role="status">
+        <div className="loading-mark">MF</div>
+        <div className="loading-bar"><span /></div>
+        <p>Preparando seu espaço...</p>
+      </div>
+    );
   }
 
-  if (!session) {
-    return <Login />;
-  }
+  if (!session) return <Login />;
 
-  return (
-    <ExpenseProvider>
-      <AppContent />
-    </ExpenseProvider>
-  )
+  return <ExpenseProvider><AppContent /></ExpenseProvider>;
 }

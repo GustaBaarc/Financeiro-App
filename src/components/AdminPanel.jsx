@@ -1,131 +1,119 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, KeyRound, Loader2, Shield } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useExpense } from '../context/ExpenseContext';
-import { Shield, KeyRound } from 'lucide-react';
 
 export default function AdminPanel() {
   const { userProfile } = useExpense();
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState('');
+  const [message, setMessage] = useState(null);
 
   useEffect(() => {
+    let active = true;
+    const fetchProfiles = async () => {
+      const { data, error } = await supabase.from('profiles').select('*');
+      if (!active) return;
+      if (error) setMessage({ type: 'error', text: `Não foi possível carregar os usuários: ${error.message}` });
+      else setProfiles(data || []);
+      setLoading(false);
+    };
     fetchProfiles();
+    return () => { active = false; };
   }, []);
 
-  const fetchProfiles = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from('profiles').select('*');
-    if (!error && data) {
-      setProfiles(data);
-    }
-    setLoading(false);
-  };
-
-  const handleRoleChange = async (id, newRole) => {
+  const handleRoleChange = async (profile, newRole) => {
     if (userProfile.role !== 'master' && newRole === 'master') {
-      alert("Apenas o Master pode promover alguém a Master.");
+      setMessage({ type: 'error', text: 'Apenas o perfil Master pode promover outro usuário a Master.' });
       return;
     }
 
-    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', id);
-    if (!error) {
-      setProfiles(prev => prev.map(p => p.id === id ? { ...p, role: newRole } : p));
-      alert("Cargo atualizado com sucesso!");
-    } else {
-      alert("Erro ao atualizar cargo: " + error.message);
+    setUpdatingId(profile.id);
+    setMessage(null);
+    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', profile.id);
+    if (error) setMessage({ type: 'error', text: `Não foi possível alterar o acesso: ${error.message}` });
+    else {
+      setProfiles(previous => previous.map(item => item.id === profile.id ? { ...item, role: newRole } : item));
+      setMessage({ type: 'success', text: 'Nível de acesso atualizado.' });
     }
+    setUpdatingId('');
   };
 
-  const handleResetPassword = async (email) => {
+  const handleResetPassword = async (profile) => {
+    const email = profile.email;
     if (!email) {
-      alert("O usuário precisa ter um email válido no nome.");
+      setMessage({ type: 'error', text: 'Este perfil não possui um e-mail disponível para recuperação.' });
       return;
     }
-    if (window.confirm(`Enviar email de redefinição de senha para ${email}?`)) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
-      if (error) {
-        alert("Erro: " + error.message);
-      } else {
-        alert("Email de recuperação enviado com sucesso!");
-      }
-    }
+    if (!window.confirm(`Enviar um link de redefinição para ${email}?`)) return;
+
+    setUpdatingId(profile.id);
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    setMessage(error
+      ? { type: 'error', text: `Não foi possível enviar o e-mail: ${error.message}` }
+      : { type: 'success', text: 'E-mail de recuperação enviado.' });
+    setUpdatingId('');
   };
 
-  if (!userProfile || (userProfile.role !== 'admin' && userProfile.role !== 'master')) {
-    return <p style={{color: 'var(--danger)'}}>Você não tem permissão para acessar esta área.</p>;
+  if (!userProfile || !['admin', 'master'].includes(userProfile.role)) {
+    return <div className="feedback-message error"><AlertCircle size={18} />Você não tem permissão para acessar esta área.</div>;
   }
 
   return (
-    <div style={{ marginTop: '1rem' }}>
-      <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Shield size={20} color="var(--primary)" /> Controle de Acesso
-      </h3>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-        Aqui você gerencia os usuários. Por segurança, senhas só podem ser alteradas enviando um link de recuperação para o email.
-      </p>
+    <section className="admin-panel">
+      <div className="admin-heading">
+        <span><Shield size={19} /></span>
+        <div><h3>Controle de acesso</h3><p>Gerencie permissões e recuperação de conta.</p></div>
+      </div>
+
+      {message && (
+        <div className={`feedback-message ${message.type}`}>
+          {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          <span>{message.text}</span>
+        </div>
+      )}
 
       {loading ? (
-        <p>Carregando usuários...</p>
+        <div className="admin-loading"><Loader2 className="spin" size={20} /> Carregando usuários...</div>
       ) : (
-        <div className="history-list" style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '1.5rem' }}>
-          {profiles.map(profile => (
-            <div key={profile.id} className="history-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem' }}>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                <div style={{ fontWeight: '600' }}>
-                  {profile.name}
-                  {profile.id === userProfile.id && <span style={{fontSize: '0.75rem', marginLeft:'0.5rem', color:'var(--success)'}}>(Você)</span>}
+        <div className="user-list">
+          {profiles.map((profile) => {
+            const isSelf = profile.id === userProfile.id;
+            const displayName = profile.full_name || profile.name || profile.email || 'Usuário sem nome';
+            const lockedMaster = profile.role === 'master' && userProfile.role !== 'master';
+            return (
+              <article className="user-list-item" key={profile.id}>
+                <div className="user-avatar">{displayName.slice(0, 2).toUpperCase()}</div>
+                <div className="user-info">
+                  <strong>{displayName} {isSelf && <span>Você</span>}</strong>
+                  <small>{profile.email || 'E-mail não disponível'}</small>
                 </div>
-                <div>
-                  <span style={{
-                    fontSize: '0.75rem', 
-                    padding: '0.2rem 0.5rem', 
-                    borderRadius: '12px',
-                    background: profile.role === 'master' ? 'rgba(239, 68, 68, 0.2)' : profile.role === 'admin' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(156, 163, 175, 0.2)',
-                    color: profile.role === 'master' ? 'var(--danger)' : profile.role === 'admin' ? 'var(--primary)' : 'var(--text-muted)'
-                  }}>
-                    {profile.role.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', width: '100%', justifyContent: 'space-between' }}>
-                <select 
-                  className="form-control"
-                  style={{ width: 'auto', padding: '0.3rem', fontSize: '0.85rem' }}
-                  value={profile.role}
-                  onChange={(e) => handleRoleChange(profile.id, e.target.value)}
-                  disabled={profile.id === userProfile.id || (profile.role === 'master' && userProfile.role !== 'master')}
+                <select
+                  value={profile.role || 'user'}
+                  onChange={(event) => handleRoleChange(profile, event.target.value)}
+                  disabled={isSelf || lockedMaster || updatingId === profile.id}
+                  aria-label={`Nível de acesso de ${displayName}`}
                 >
                   <option value="user">Usuário</option>
                   <option value="admin">Admin</option>
                   {userProfile.role === 'master' && <option value="master">Master</option>}
                 </select>
-
-                <button 
-                  onClick={() => handleResetPassword(profile.name)}
-                  style={{ 
-                    background: 'none', 
-                    border: '1px solid var(--border)', 
-                    color: 'var(--text-main)', 
-                    cursor: 'pointer',
-                    padding: '0.3rem 0.5rem',
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem'
-                  }}
-                  title="Enviar Reset de Senha"
+                <button
+                  type="button"
+                  className="icon-button ghost"
+                  onClick={() => handleResetPassword(profile)}
+                  disabled={!profile.email || updatingId === profile.id}
+                  aria-label={`Redefinir senha de ${displayName}`}
+                  title="Enviar link de redefinição"
                 >
-                  <KeyRound size={14} /> Resetar Senha
+                  {updatingId === profile.id ? <Loader2 className="spin" size={16} /> : <KeyRound size={16} />}
                 </button>
-              </div>
-
-            </div>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
-    </div>
+    </section>
   );
 }

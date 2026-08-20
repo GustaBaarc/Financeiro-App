@@ -1,25 +1,21 @@
 import { useState } from 'react';
+import { AlertCircle, ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, WalletCards } from 'lucide-react';
 import { supabase } from '../supabaseClient';
-import { Wallet } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
-  // Novos estados para o Cadastro
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [gender, setGender] = useState('');
-
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Limpa todos os formulários ao trocar de modo
-  const toggleMode = () => {
-    setIsSignUp(!isSignUp);
-    setErrorMsg(null);
+  const resetFields = () => {
     setEmail('');
     setPassword('');
     setFullName('');
@@ -28,218 +24,144 @@ export default function Login() {
     setGender('');
   };
 
+  const toggleMode = () => {
+    setIsSignUp(previous => !previous);
+    setErrorMessage('');
+    setSuccessMessage('');
+    resetFields();
+  };
+
   const calculateAge = (dateString) => {
+    const [year, month, day] = dateString.split('-').map(Number);
     const today = new Date();
-    const birth = new Date(dateString);
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
+    let age = today.getFullYear() - year;
+    if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) age -= 1;
     return age;
   };
 
-  const handleAuth = async (e) => {
-    e.preventDefault();
+  const handleAuth = async (event) => {
+    event.preventDefault();
     setLoading(true);
-    setErrorMsg(null);
+    setErrorMessage('');
+    setSuccessMessage('');
 
     try {
       if (isSignUp) {
-        // Validação de Idade (+18)
-        if (!birthDate) {
-          throw new Error('A data de nascimento é obrigatória.');
-        }
-        
-        const age = calculateAge(birthDate);
-        if (age < 18) {
-          throw new Error('Você deve ter pelo menos 18 anos para criar uma conta.');
-        }
-
-        if (!fullName.trim()) {
-          throw new Error('O nome completo é obrigatório.');
-        }
-
-        const { error } = await supabase.auth.signUp({
-          email,
+        if (calculateAge(birthDate) < 18) throw new Error('Você precisa ter pelo menos 18 anos para criar uma conta.');
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
           password,
           options: {
             data: {
-              full_name: fullName,
-              phone: phone,
+              full_name: fullName.trim(),
+              phone: phone.trim(),
               birth_date: birthDate,
-              gender: gender
-            }
-          }
+              gender,
+            },
+          },
         });
-        
         if (error) throw error;
-        
-        alert('Conta criada com sucesso! Você já pode entrar.');
-        toggleMode(); // Volta para tela de login limpa
+
+        if (!data.session) {
+          setIsSignUp(false);
+          resetFields();
+          setSuccessMessage('Conta criada! Confira seu e-mail para confirmar o cadastro antes de entrar.');
+        }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       }
     } catch (error) {
-      setErrorMsg(error.message || 'Erro ao autenticar.');
+      setErrorMessage(error.message || 'Não foi possível autenticar. Tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      minHeight: '100vh',
-      backgroundColor: 'var(--bg-color)',
-      padding: '1rem'
-    }}>
-      <div style={{
-        background: 'var(--bg-surface)',
-        padding: '3rem 2.5rem',
-        borderRadius: 'var(--border-radius)',
-        border: `1px solid var(--border)`,
-        width: '100%',
-        maxWidth: '460px',
-        textAlign: 'center',
-        boxShadow: 'var(--shadow-lg)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ background: 'var(--primary-light)', padding: '1.25rem', borderRadius: '50%' }}>
-            <Wallet size={36} style={{ color: 'var(--primary)' }} />
-          </div>
+    <main className="auth-page">
+      <div className="auth-ambient auth-ambient-one" />
+      <div className="auth-ambient auth-ambient-two" />
+      <section className="auth-story">
+        <div className="auth-brand"><span><WalletCards size={23} /></span> Minhas Finanças</div>
+        <div className="auth-copy">
+          <span className="eyebrow">Finanças sem complicação</span>
+          <h1>Clareza para decidir.<br />Calma para realizar.</h1>
+          <p>Organize contas, acompanhe gastos e transforme movimentos do dia a dia em escolhas melhores.</p>
         </div>
-        <h2 style={{ marginBottom: '0.5rem', color: 'var(--text-main)', fontSize: '1.75rem', fontWeight: '700', letterSpacing: '-0.02em' }}>
-          {isSignUp ? 'Criar Conta' : 'Bem-vindo de volta'}
-        </h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', fontSize: '1rem' }}>
-          {isSignUp ? 'Registre-se para gerenciar suas finanças' : 'Acesse suas finanças pessoais'}
-        </p>
-
-        {errorMsg && (
-          <div style={{ background: 'var(--danger-light)', color: 'var(--danger)', padding: '1rem', borderRadius: 'var(--border-radius-sm)', marginBottom: '1.5rem', fontSize: '0.95rem', fontWeight: '500', textAlign: 'left', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-            ⚠️ {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleAuth} style={{ textAlign: 'left' }}>
-          
-          {isSignUp && (
-            <>
-              <div className="form-group">
-                <label>Nome Completo *</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Seu nome completo"
-                  required
-                />
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label>Nascimento *</label>
-                  <input 
-                    type="date" 
-                    className="form-control" 
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Sexo</label>
-                  <select 
-                    className="form-control" 
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                  >
-                    <option value="">Selecione...</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Feminino">Feminino</option>
-                    <option value="Prefiro não dizer">Prefiro não dizer</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Telefone</label>
-                <input 
-                  type="tel" 
-                  className="form-control" 
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-            </>
-          )}
-
-          <div className="form-group">
-            <label>E-mail {isSignUp && '*'}</label>
-            <input 
-              type="email" 
-              className="form-control" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              required
-            />
-          </div>
-          
-          <div className="form-group" style={{ marginBottom: '2.5rem' }}>
-            <label>Senha {isSignUp && '*'}</label>
-            <input 
-              type="password" 
-              className="form-control" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            className="btn btn-primary" 
-            disabled={loading}
-            style={{ width: '100%', padding: '1rem', fontSize: '1.05rem' }}
-          >
-            {loading ? 'Aguarde...' : (isSignUp ? 'Criar Minha Conta' : 'Entrar')}
-          </button>
-        </form>
-
-        <div style={{ marginTop: '2rem', fontSize: '0.95rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-          <span style={{ color: 'var(--text-muted)' }}>
-            {isSignUp ? 'Já tem uma conta?' : 'Ainda não tem conta?'}
-          </span>
-          {' '}
-          <button 
-            onClick={toggleMode}
-            type="button"
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: 'var(--primary)', 
-              fontWeight: '600', 
-              cursor: 'pointer',
-              fontSize: '0.95rem'
-            }}
-          >
-            {isSignUp ? 'Faça Login' : 'Criar Conta'}
-          </button>
+        <div className="auth-preview-card">
+          <span>Saldo disponível</span>
+          <strong>Seu mês em um só lugar</strong>
+          <div><i /><i /><i /></div>
         </div>
-      </div>
-    </div>
+        <small>Seguro · Privado · Feito para sua rotina</small>
+      </section>
+
+      <section className="auth-panel">
+        <div className="auth-mobile-brand"><span><WalletCards size={21} /></span> Minhas Finanças</div>
+        <div className="auth-form-wrap">
+          <div className="auth-heading">
+            <span className="eyebrow">{isSignUp ? 'Comece agora' : 'Bem-vindo de volta'}</span>
+            <h2>{isSignUp ? 'Crie sua conta' : 'Entre na sua conta'}</h2>
+            <p>{isSignUp ? 'Leva menos de dois minutos.' : 'Continue de onde você parou.'}</p>
+          </div>
+
+          {errorMessage && <div className="feedback-message error" role="alert"><AlertCircle size={18} /><span>{errorMessage}</span></div>}
+          {successMessage && <div className="feedback-message success"><CheckCircle2 size={18} /><span>{successMessage}</span></div>}
+
+          <form className="auth-form" onSubmit={handleAuth}>
+            {isSignUp && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="full-name">Nome completo</label>
+                  <input id="full-name" type="text" className="form-control" value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Como podemos chamar você?" autoComplete="name" required />
+                </div>
+                <div className="form-grid two-columns auth-grid">
+                  <div className="form-group">
+                    <label htmlFor="birth-date">Nascimento</label>
+                    <input id="birth-date" type="date" className="form-control" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="gender">Gênero <span className="optional">opcional</span></label>
+                    <select id="gender" className="form-control" value={gender} onChange={(event) => setGender(event.target.value)}>
+                      <option value="">Selecione</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Feminino">Feminino</option>
+                      <option value="Não binário">Não binário</option>
+                      <option value="Prefiro não dizer">Prefiro não dizer</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="phone">Telefone <span className="optional">opcional</span></label>
+                  <input id="phone" type="tel" className="form-control" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="(00) 00000-0000" autoComplete="tel" />
+                </div>
+              </>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="email">E-mail</label>
+              <input id="email" type="email" className="form-control" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@email.com" autoComplete="email" required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="password">Senha</label>
+              <div className="password-field">
+                <input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo de 6 caracteres" autoComplete={isSignUp ? 'new-password' : 'current-password'} minLength={6} required />
+                <button type="button" onClick={() => setShowPassword(previous => !previous)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+              {loading ? <><Loader2 className="spin" size={18} /> Aguarde...</> : <>{isSignUp ? 'Criar minha conta' : 'Entrar'} <ArrowRight size={18} /></>}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            {isSignUp ? 'Já possui uma conta?' : 'Ainda não possui uma conta?'}
+            <button type="button" onClick={toggleMode}>{isSignUp ? 'Fazer login' : 'Criar conta grátis'}</button>
+          </p>
+        </div>
+      </section>
+    </main>
   );
 }

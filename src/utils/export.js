@@ -1,34 +1,39 @@
+const escapeCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
 export function exportToCSV(transactions, banks) {
-  if (!transactions || transactions.length === 0) {
-    alert("Não há dados para exportar.");
-    return;
+  if (!transactions?.length) {
+    throw new Error('Não há transações para exportar.');
   }
 
-  // Header
-  const headers = ["Data", "Descrição", "Valor", "Tipo", "Categoria", "Banco"];
-  
-  // Rows
-  const rows = transactions.map(t => {
-    const bankName = banks.find(b => b.id === t.bankId)?.name || 'Desconhecido';
-    const typeLabel = t.type === 'credit' ? 'Crédito' : t.type === 'income' ? 'Receita' : 'Débito';
-    const dateStr = new Date(t.date).toLocaleDateString('pt-BR');
-    
-    // Ensure description doesn't break CSV if it has commas
-    const desc = `"${t.description.replace(/"/g, '""')}"`;
-    
-    return [dateStr, desc, t.amount, typeLabel, t.category, bankName].join(',');
+  const headers = ['Data', 'Descrição', 'Valor', 'Tipo', 'Categoria', 'Banco', 'Status'];
+  const rows = transactions.map((transaction) => {
+    const bankName = banks.find(bank => String(bank.id) === String(transaction.bankId))?.name || 'Sem conta';
+    const typeLabel = transaction.type === 'credit'
+      ? 'Crédito'
+      : transaction.type === 'income' ? 'Receita' : 'Débito';
+    const date = new Date(transaction.date);
+    const dateLabel = Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('pt-BR');
+    const amount = Number(transaction.amount || 0).toFixed(2).replace('.', ',');
+
+    return [
+      dateLabel,
+      transaction.description,
+      amount,
+      typeLabel,
+      transaction.category,
+      bankName,
+      transaction.status === 'pending' ? 'Pendente' : 'Confirmado',
+    ].map(escapeCell).join(';');
   });
 
-  const csvContent = "data:text/csv;charset=utf-8," 
-    + headers.join(',') + "\n" 
-    + rows.join("\n");
-
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `minhas_financas_export_${new Date().getTime()}.csv`);
+  const content = `\uFEFF${headers.map(escapeCell).join(';')}\r\n${rows.join('\r\n')}`;
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `minhas-financas-${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(link);
-  
   link.click();
-  document.body.removeChild(link);
+  link.remove();
+  URL.revokeObjectURL(url);
 }

@@ -1,190 +1,167 @@
 import { useState } from 'react';
+import { AlertCircle, CreditCard, Edit3, Loader2, Plus, Shield, Trash2 } from 'lucide-react';
 import { useExpense } from '../context/ExpenseContext';
-import { Trash2, Edit2, Plus, CreditCard, Shield } from 'lucide-react';
 import AdminPanel from './AdminPanel';
+import Modal from './Modal';
 
-export default function SettingsModal({ onClose }) {
+const COLORS = ['#3267e3', '#7c3aed', '#db2777', '#e34b32', '#f97316', '#0f9f7a', '#0f766e', '#334155'];
+
+export default function SettingsModal({ onClose, onMessage }) {
   const { banks, addBank, updateBank, deleteBank, transactions, userProfile } = useExpense();
-  const [activeTab, setActiveTab] = useState('cards'); // 'cards' ou 'admin'
+  const canManageUsers = userProfile?.role === 'admin' || userProfile?.role === 'master';
+  const [activeTab, setActiveTab] = useState('cards');
   const [editingBank, setEditingBank] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
-
   const [name, setName] = useState('');
-  const [color, setColor] = useState('#6366f1');
+  const [color, setColor] = useState('#3267e3');
   const [last4, setLast4] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const handleEdit = (bank) => {
     setEditingBank(bank);
     setIsAdding(false);
-    setName(bank.name);
-    setColor(bank.color);
-    setLast4(bank.last4);
+    setName(bank.name || '');
+    setColor(bank.color || '#3267e3');
+    setLast4(bank.last4 || '');
+    setError('');
   };
 
   const handleAdd = () => {
     setIsAdding(true);
     setEditingBank(null);
     setName('');
-    setColor('#6366f1');
+    setColor('#3267e3');
     setLast4('');
-  };
-
-  const handleDelete = (id) => {
-    const hasTransactions = transactions.some(t => t.bankId === id);
-    if (hasTransactions) {
-      if (!window.confirm("Aviso: Existem transações associadas a este cartão. Tem certeza que deseja excluí-lo?")) {
-        return;
-      }
-    }
-    deleteBank(id);
-  };
-
-  const handleSave = (e) => {
-    e.preventDefault();
-    if (isAdding) {
-      addBank({ name, color, last4 });
-    } else if (editingBank) {
-      updateBank(editingBank.id, { name, color, last4 });
-    }
-    cancelEdit();
+    setError('');
   };
 
   const cancelEdit = () => {
     setIsAdding(false);
     setEditingBank(null);
+    setError('');
+  };
+
+  const handleDelete = async (bank) => {
+    const linkedCount = transactions.filter(transaction => String(transaction.bankId) === String(bank.id)).length;
+    const message = linkedCount
+      ? `${bank.name} possui ${linkedCount} transações vinculadas. Excluir mesmo assim?`
+      : `Excluir a conta ${bank.name}?`;
+    if (!window.confirm(message)) return;
+
+    try {
+      await deleteBank(bank.id);
+      onMessage?.('Conta excluída.', 'success');
+    } catch (deleteError) {
+      setError(deleteError.message);
+    }
+  };
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      if (isAdding) await addBank({ name, color, last4 });
+      else await updateBank(editingBank.id, { name, color, last4 });
+      onMessage?.(isAdding ? 'Conta adicionada.' : 'Conta atualizada.', 'success');
+      cancelEdit();
+    } catch (saveError) {
+      setError(saveError.message || 'Não foi possível salvar a conta.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
-        
-        {(userProfile?.role === 'admin' || userProfile?.role === 'master') && (
-          <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
-            <button 
-              onClick={() => setActiveTab('cards')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'cards' ? 'bold' : 'normal', color: activeTab === 'cards' ? 'var(--primary)' : 'var(--text-muted)' }}
-            >
-              Meus Cartões
-            </button>
-            <button 
-              onClick={() => setActiveTab('admin')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: activeTab === 'admin' ? 'bold' : 'normal', color: activeTab === 'admin' ? 'var(--primary)' : 'var(--text-muted)' }}
-            >
-              Administração
-            </button>
-          </div>
-        )}
+    <Modal
+      title="Contas e preferências"
+      eyebrow="Configurações"
+      description="Mantenha seus bancos e cartões organizados."
+      onClose={onClose}
+      size="large"
+    >
+      {canManageUsers && (
+        <div className="settings-tabs" role="tablist">
+          <button type="button" className={activeTab === 'cards' ? 'active' : ''} onClick={() => setActiveTab('cards')}><CreditCard size={16} /> Minhas contas</button>
+          <button type="button" className={activeTab === 'admin' ? 'active' : ''} onClick={() => setActiveTab('admin')}><Shield size={16} /> Usuários</button>
+        </div>
+      )}
 
-        {activeTab === 'admin' ? (
-          <AdminPanel />
-        ) : (
-          <>
-            <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CreditCard /> Meus Cartões / Contas
-            </h2>
-            
-            {isAdding || editingBank ? (
-          <form onSubmit={handleSave} style={{ background: 'var(--bg-color)', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border)' }}>
-            <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>{isAdding ? 'Novo Cartão' : 'Editar Cartão'}</h3>
-            <div className="form-group">
-              <label>Nome do Cartão/Banco</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={name}
-                onChange={e => setName(e.target.value)}
-                required
-              />
-            </div>
-            
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label>Cor</label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input 
-                    type="color" 
-                    value={color}
-                    onChange={e => setColor(e.target.value)}
-                    style={{ width: '40px', height: '40px', padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
-                  />
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    value={color}
-                    onChange={e => setColor(e.target.value)}
-                    style={{ textTransform: 'uppercase' }}
-                    pattern="^#[0-9A-Fa-f]{6}$"
-                    title="Hexadecimal da cor. Ex: #FF0000"
-                  />
+      {error && <div className="feedback-message error"><AlertCircle size={18} /><span>{error}</span></div>}
+
+      {activeTab === 'admin' ? <AdminPanel /> : (
+        <>
+          {(isAdding || editingBank) ? (
+            <form className="bank-form" onSubmit={handleSave}>
+              <div className="form-group">
+                <label htmlFor="bank-name">Nome da conta ou cartão</label>
+                <input id="bank-name" type="text" className="form-control" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Nubank" autoFocus required />
+              </div>
+
+              <div className="form-group">
+                <label>Cor de identificação</label>
+                <div className="color-picker">
+                  {COLORS.map(item => (
+                    <button
+                      type="button"
+                      key={item}
+                      className={color.toLowerCase() === item.toLowerCase() ? 'selected' : ''}
+                      style={{ background: item }}
+                      onClick={() => setColor(item)}
+                      aria-label={`Usar cor ${item}`}
+                    />
+                  ))}
+                  <label className="custom-color" title="Escolher outra cor">
+                    <input type="color" value={color} onChange={(event) => setColor(event.target.value)} />+
+                  </label>
                 </div>
               </div>
 
-              <div className="form-group" style={{ flex: 1 }}>
-                <label>Últimos 4 Dígitos</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+              <div className="form-group">
+                <label htmlFor="bank-last4">Últimos 4 dígitos <span className="optional">opcional</span></label>
+                <input
+                  id="bank-last4"
+                  type="text"
+                  className="form-control"
                   value={last4}
-                  onChange={e => setLast4(e.target.value)}
-                  maxLength="4"
-                  placeholder="Ex: 1234"
+                  onChange={(event) => setLast4(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                  inputMode="numeric"
+                  placeholder="1234"
                 />
               </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-              <button type="button" className="btn" onClick={cancelEdit} style={{ background: 'transparent', border: '1px solid var(--border)', color: 'white' }}>Cancelar</button>
-              <button type="submit" className="btn btn-primary">Salvar</button>
-            </div>
-          </form>
-        ) : (
-          <>
-            <div className="history-list" style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '1.5rem' }}>
-              {banks.map(bank => (
-                <div key={bank.id} className="history-item" style={{ borderLeft: `4px solid ${bank.color}` }}>
-                  <div className="history-details">
-                    <div style={{ fontWeight: '600' }}>{bank.name}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      Final: {bank.last4 || 'N/A'}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button 
-                      onClick={() => handleEdit(bank)}
-                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
-                      title="Editar"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(bank.id)}
-                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
-                      title="Excluir"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {banks.length === 0 && (
-                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>Nenhum cartão cadastrado.</p>
-              )}
-            </div>
-            
-            <button className="btn btn-primary" onClick={handleAdd} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-              <Plus size={18} /> Adicionar Cartão
-            </button>
-          </>
-        )}
+              <div className="modal-actions compact">
+                <button type="button" className="btn btn-secondary" onClick={cancelEdit}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? <><Loader2 className="spin" size={18} /> Salvando...</> : 'Salvar conta'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <div className="settings-section-heading">
+                <div><h3>Suas contas</h3><p>{banks.length} {banks.length === 1 ? 'conta cadastrada' : 'contas cadastradas'}</p></div>
+                <button type="button" className="btn btn-secondary small" onClick={handleAdd}><Plus size={16} /> Adicionar</button>
+              </div>
+
+              <div className="bank-list">
+                {banks.map(bank => (
+                  <article className="bank-list-item" key={bank.id}>
+                    <span className="bank-color" style={{ background: bank.color || '#3267e3' }}><CreditCard size={19} /></span>
+                    <div><strong>{bank.name}</strong><span>{bank.last4 ? `Final ${bank.last4}` : 'Sem número informado'}</span></div>
+                    <button type="button" className="icon-button ghost" onClick={() => handleEdit(bank)} aria-label={`Editar ${bank.name}`}><Edit3 size={17} /></button>
+                    <button type="button" className="icon-button ghost danger" onClick={() => handleDelete(bank)} aria-label={`Excluir ${bank.name}`}><Trash2 size={17} /></button>
+                  </article>
+                ))}
+                {!banks.length && (
+                  <div className="empty-state compact"><span><CreditCard size={23} /></span><h4>Nenhuma conta cadastrada</h4><p>Adicione bancos e cartões para organizar os lançamentos.</p></div>
+                )}
+              </div>
+            </>
+          )}
         </>
-        )}
-
-        {!isAdding && !editingBank && (
-          <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-             <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>Fechar Configurações</button>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }
