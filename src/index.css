@@ -2202,6 +2202,11 @@ select.form-control {
   color: #b3b8ff;
 }
 
+.recovery-icon.invalid {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 .recovery-card h1 {
   margin-bottom: 8px;
   font-size: 1.7rem;

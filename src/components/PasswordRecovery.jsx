@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, LockKeyhole, WalletCards } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
-export default function PasswordRecovery({ onComplete }) {
+export default function PasswordRecovery({ onComplete, invalidReason = '' }) {
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,12 +36,14 @@ export default function PasswordRecovery({ onComplete }) {
     <main className="recovery-page">
       <section className="recovery-card">
         <div className="auth-mobile-brand recovery-brand"><span><WalletCards size={21} /></span> Minhas Finanças</div>
-        <div className="recovery-icon">{success ? <CheckCircle2 size={27} /> : <LockKeyhole size={27} />}</div>
+        <div className={`recovery-icon ${invalidReason ? 'invalid' : ''}`}>{success ? <CheckCircle2 size={27} /> : invalidReason ? <AlertCircle size={27} /> : <LockKeyhole size={27} />}</div>
         <span className="eyebrow">Recuperação de acesso</span>
-        <h1>{success ? 'Senha atualizada' : 'Crie uma nova senha'}</h1>
-        <p>{success ? 'Sua nova senha já está ativa e sua sessão continua protegida.' : 'Escolha uma senha forte que você ainda não utiliza em outros serviços.'}</p>
+        <h1>{success ? 'Senha atualizada' : invalidReason ? 'Link inválido ou expirado' : 'Crie uma nova senha'}</h1>
+        <p>{success ? 'Sua nova senha já está ativa e sua sessão continua protegida.' : invalidReason || 'Escolha uma senha forte que você ainda não utiliza em outros serviços.'}</p>
 
-        {success ? (
+        {invalidReason ? (
+          <button type="button" className="btn btn-primary recovery-submit" onClick={onComplete}>Solicitar um novo link</button>
+        ) : success ? (
           <button type="button" className="btn btn-primary recovery-submit" onClick={onComplete}>Ir para meu painel</button>
         ) : (
           <form onSubmit={handleSubmit}>

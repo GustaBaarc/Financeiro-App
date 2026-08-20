@@ -158,25 +158,68 @@ function AppContent() {
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [recoveryStatus, setRecoveryStatus] = useState('idle');
+  const [recoveryError, setRecoveryError] = useState('');
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) {
-        setSession(data.session);
-        if (data.session && new URLSearchParams(window.location.search).get('recovery') === '1') {
-          setIsPasswordRecovery(true);
+    const queryParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const recoveryRequested = queryParams.get('recovery') === '1'
+      || queryParams.get('type') === 'recovery'
+      || hashParams.get('type') === 'recovery';
+    const callbackError = queryParams.get('error_description') || hashParams.get('error_description');
+    const tokenHash = queryParams.get('token_hash');
+
+    const initializeAuth = async () => {
+      if (recoveryRequested) setRecoveryStatus('loading');
+
+      if (callbackError) {
+        if (!active) return;
+        setRecoveryError('Este link expirou, já foi utilizado ou foi alterado pelo provedor de e-mail. Solicite um novo link.');
+        setRecoveryStatus('error');
+        setLoading(false);
+        return;
+      }
+
+      if (tokenHash) {
+        const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' });
+        if (!active) return;
+        if (error || !data.session) {
+          setRecoveryError('Não foi possível validar este link. Ele pode ter expirado ou já ter sido usado.');
+          setRecoveryStatus('error');
+        } else {
+          setSession(data.session);
+          setRecoveryStatus('ready');
         }
         setLoading(false);
+        return;
       }
-    });
+
+      const { data, error } = await supabase.auth.getSession();
+      if (!active) return;
+      setSession(data.session);
+      if (recoveryRequested) {
+        if (error || !data.session) {
+          setRecoveryError('O Supabase não forneceu uma sessão válida para este link. Solicite uma nova recuperação.');
+          setRecoveryStatus('error');
+        } else {
+          setRecoveryStatus('ready');
+        }
+      }
+      setLoading(false);
+    };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
-      if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryStatus('ready');
+        setRecoveryError('');
+      }
       setLoading(false);
     });
+
+    initializeAuth();
 
     return () => {
       active = false;
@@ -194,8 +237,22 @@ export default function App() {
     );
   }
 
-  if (isPasswordRecovery && session) {
-    return <PasswordRecovery onComplete={() => setIsPasswordRecovery(false)} />;
+  const finishRecovery = async (invalid = false) => {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    setRecoveryStatus('idle');
+    setRecoveryError('');
+    if (invalid) {
+      await supabase.auth.signOut();
+      setSession(null);
+    }
+  };
+
+  if (recoveryStatus === 'error') {
+    return <PasswordRecovery invalidReason={recoveryError} onComplete={() => finishRecovery(true)} />;
+  }
+
+  if (recoveryStatus === 'ready' && session) {
+    return <PasswordRecovery onComplete={() => finishRecovery(false)} />;
   }
 
   if (!session) return <Login />;

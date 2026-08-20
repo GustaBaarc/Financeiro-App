@@ -20,6 +20,7 @@ Copie `.env.example` para `.env.local` e preencha:
 ```env
 VITE_SUPABASE_URL=https://seu-projeto.supabase.co
 VITE_SUPABASE_ANON_KEY=sua-chave-publica-do-supabase
+VITE_SITE_URL=https://seu-projeto.vercel.app
 GEMINI_API_KEY=sua-chave-privada-do-gemini
 ```
 
